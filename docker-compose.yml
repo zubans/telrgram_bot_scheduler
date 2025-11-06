@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tg_forwarder_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-telegram_forwarder}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tg_forwarder_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tg_forwarder_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - TG_TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+      - TG_TELEGRAM_GROUP_CHAT_ID=${GROUP_CHAT_ID}
+      - TG_DATABASE_HOST=postgres
+      - TG_DATABASE_PORT=5432
+      - TG_DATABASE_USER=${DB_USER:-postgres}
+      - TG_DATABASE_PASSWORD=${DB_PASSWORD:-postgres}
+      - TG_DATABASE_DBNAME=${DB_NAME:-telegram_forwarder}
+      - TG_DATABASE_SSLMODE=disable
+      - TG_APP_RUN_ONCE=${RUN_ONCE:-false}
+      - TG_APP_DAYS_AHEAD=${DAYS_AHEAD:-5}
+      - TG_APP_SCHEDULE_CRON=${SCHEDULE_CRON:-"0 8 * * *"}
+    volumes:
+      - ./config.yaml:/root/config.yaml
+    networks:
+      - tg_forwarder_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  tg_forwarder_network:
+    driver: bridge

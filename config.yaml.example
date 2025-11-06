@@ -1,0 +1,21 @@
+telegram:
+  bot_token: "8559668470:AAFP70OfngmY6_pXKJYk0nUOx3BWkCl4Hy8"
+  group_chat_id: -1003286891147
+  user_ids:
+    - 114980673
+    - 1576587605
+    - 1068839095
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "postgres"
+  password: "postgres"
+  dbname: "telegram_forwarder"
+  sslmode: "disable"
+
+app:
+  run_once: false
+  log_level: "info"
+  days_ahead: 5
+  schedule_cron: "0 8 * * *"
