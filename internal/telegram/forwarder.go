@@ -118,8 +118,30 @@ func (f *Forwarder) ForwardPinnedMessage(ctx context.Context, groupChatID int64)
 
 	log.Printf("Найдено предстоящих событий: %d", len(upcomingEvents))
 
-	eventMessages := make([]string, 0)
+	var newEvents []*parser.EventEntry
 	for _, event := range upcomingEvents {
+		eventHash := database.GenerateEventHash(event.Date, event.Description)
+		isSent, err := f.repository.IsEventSent(ctx, eventHash)
+		if err != nil {
+			log.Printf("Ошибка при проверке отправленного события: %v", err)
+			continue
+		}
+		if isSent {
+			log.Printf("Событие уже было отправлено: %s - %s", event.Date.Format("2006-01-02"), event.Description)
+			continue
+		}
+		newEvents = append(newEvents, event)
+	}
+
+	if len(newEvents) == 0 {
+		log.Println("Все предстоящие события уже были отправлены ранее")
+		return nil
+	}
+
+	log.Printf("Новых событий для отправки: %d", len(newEvents))
+
+	eventMessages := make([]string, 0)
+	for _, event := range newEvents {
 		formatted := parser.FormatEventForMessage(event)
 		if formatted != "" {
 			eventMessages = append(eventMessages, formatted)
@@ -135,11 +157,16 @@ func (f *Forwarder) ForwardPinnedMessage(ctx context.Context, groupChatID int64)
 	}
 
 	if len(recipients) == 0 {
-		log.Println("Нет активных получателей")
+		log.Println("Нет активных получателей с разрешением на отправку")
 		return nil
 	}
 
-	log.Printf("Отправляем напоминание %d получателям...", len(recipients))
+	log.Printf("Найдено получателей с разрешением на отправку: %d", len(recipients))
+	for _, recipient := range recipients {
+		log.Printf("  - Пользователь ID: %d, Username: %s", recipient.UserID, recipient.Username)
+	}
+
+	log.Printf("Отправляем напоминание %d получателям из БД...", len(recipients))
 
 	successCount := 0
 	for _, recipient := range recipients {
@@ -154,6 +181,17 @@ func (f *Forwarder) ForwardPinnedMessage(ctx context.Context, groupChatID int64)
 		f.repository.UpdateDeliveryStatus(ctx, recipient.UserID, "success", nil)
 		successCount++
 		time.Sleep(500 * time.Millisecond)
+	}
+
+	if successCount > 0 {
+		for _, event := range newEvents {
+			eventHash := database.GenerateEventHash(event.Date, event.Description)
+			if err := f.repository.MarkEventAsSent(ctx, event.Date, event.Description, eventHash); err != nil {
+				log.Printf("Ошибка при сохранении информации об отправленном событии: %v", err)
+			} else {
+				log.Printf("Событие помечено как отправленное: %s - %s", event.Date.Format("2006-01-02"), event.Description)
+			}
+		}
 	}
 
 	f.repository.CreateMessageLog(ctx, pinnedMessage.MessageID, "event_reminder", messageText, len(recipients), successCount)
