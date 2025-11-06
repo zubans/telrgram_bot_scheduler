@@ -12,8 +12,8 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/yourusername/telegram-pin-forwarder/internal/database"
-	"github.com/yourusername/telegram-pin-forwarder/internal/parser"
+	"telegram_bot/telegram-pin-forwarder/internal/database"
+	"telegram_bot/telegram-pin-forwarder/internal/parser"
 )
 
 type Forwarder struct {

@@ -9,9 +9,9 @@ import (
 	"syscall"
 
 	"github.com/robfig/cron/v3"
-	"github.com/yourusername/telegram-pin-forwarder/internal/config"
-	"github.com/yourusername/telegram-pin-forwarder/internal/database"
-	"github.com/yourusername/telegram-pin-forwarder/internal/telegram"
+	"telegram_bot/telegram-pin-forwarder/internal/config"
+	"telegram_bot/telegram-pin-forwarder/internal/database"
+	"telegram_bot/telegram-pin-forwarder/internal/telegram"
 )
 
 func main() {

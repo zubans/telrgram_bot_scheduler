@@ -1,4 +1,4 @@
-module github.com/yourusername/telegram-pin-forwarder
+module telegram_bot/telegram-pin-forwarder
 
 go 1.21
 
