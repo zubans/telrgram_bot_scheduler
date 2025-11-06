@@ -9,31 +9,53 @@ DB_SSLMODE ?= disable
 
 MIGRATE_DSN = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 
+GOPATH_BIN = $(shell go env GOPATH)/bin
+ifeq ($(GOPATH_BIN),/bin)
+    GOPATH_BIN = $(HOME)/go/bin
+endif
+PATH := $(GOPATH_BIN):$(PATH)
+export PATH
+
 deps:
 	go mod download
 	go mod tidy
 
 migrate-up:
-	@if ! command -v migrate > /dev/null; then \
+	@if ! command -v migrate > /dev/null 2>&1 && [ ! -f "$(GOPATH_BIN)/migrate" ]; then \
 		echo "migrate tool not found. Installing..."; \
 		go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest; \
 	fi
-	migrate -path migrations -database "$(MIGRATE_DSN)" up
+	@MIGRATE_CMD=$$(command -v migrate 2>/dev/null || echo "$(GOPATH_BIN)/migrate"); \
+	if [ ! -f "$$MIGRATE_CMD" ]; then \
+		echo "Error: migrate tool not found. Please install it manually: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest"; \
+		exit 1; \
+	fi; \
+	$$MIGRATE_CMD -path migrations -database "$(MIGRATE_DSN)" up
 
 migrate-down:
-	@if ! command -v migrate > /dev/null; then \
+	@if ! command -v migrate > /dev/null 2>&1 && [ ! -f "$(GOPATH_BIN)/migrate" ]; then \
 		echo "migrate tool not found. Installing..."; \
 		go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest; \
 	fi
-	migrate -path migrations -database "$(MIGRATE_DSN)" down
+	@MIGRATE_CMD=$$(command -v migrate 2>/dev/null || echo "$(GOPATH_BIN)/migrate"); \
+	if [ ! -f "$$MIGRATE_CMD" ]; then \
+		echo "Error: migrate tool not found. Please install it manually: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest"; \
+		exit 1; \
+	fi; \
+	$$MIGRATE_CMD -path migrations -database "$(MIGRATE_DSN)" down
 
 migrate-create:
-	@if ! command -v migrate > /dev/null; then \
+	@if ! command -v migrate > /dev/null 2>&1 && [ ! -f "$(GOPATH_BIN)/migrate" ]; then \
 		echo "migrate tool not found. Installing..."; \
 		go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest; \
 	fi
-	@read -p "Enter migration name: " name; \
-	migrate create -ext sql -dir migrations -seq $$name
+	@MIGRATE_CMD=$$(command -v migrate 2>/dev/null || echo "$(GOPATH_BIN)/migrate"); \
+	if [ ! -f "$$MIGRATE_CMD" ]; then \
+		echo "Error: migrate tool not found. Please install it manually: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest"; \
+		exit 1; \
+	fi; \
+	read -p "Enter migration name: " name; \
+	$$MIGRATE_CMD create -ext sql -dir migrations -seq $$name
 
 run:
 	go run cmd/forwarder/main.go
